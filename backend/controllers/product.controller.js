@@ -1,10 +1,18 @@
+import { addOneCache, getCache, removeOneCache, setCache, updateOneCache } from "../helpers/Cache.js";
 import Product from "../models/product.model.js";
 import mongoose from 'mongoose';
 
 export const getProducts = async (req, res) => {
     try {
-        const products = await Product.find({});
-        return res.status(200).json({ success: true, data: products });
+      
+      let products = await getCache("products");
+      
+      if(!products) {
+        products = await Product.find({});
+        setCache("products", products);
+      }
+
+      return res.status(200).json({ success: true, data: products });
     } catch (error) {
         return res.status(500).json({ success: false, message: "Server error" });
     }
@@ -17,10 +25,11 @@ export const createProduct = async (req, res) => {
         return res.status(400).json({success: false, message: "Please provide all fields"});
     }
 
-    const newProduct = new Product(product);
+    const newProduct = new Product(product);  
 
     try {
         await newProduct.save();
+        addOneCache("products", newProduct);
         return res.status(201).json({success: true, data: newProduct, message: "Product created successfully."});
     } catch (error) {
         return res.status(500).json({success: false, message: "Server error"});
@@ -37,6 +46,7 @@ export const updateProduct = async (req, res) => {
 
     try {
         const updatedProduct = await Product.findByIdAndUpdate(id, product,{ new: true});  
+        updateOneCache("products", id, updatedProduct);
         return res.status(200).json({success: true, data: updatedProduct, message: "Product update successfully."}); 
     } catch (error) {
         return res.status(500).json({success: false, message: error.message}); 
@@ -52,9 +62,11 @@ export const deleteProduct = async (req, res) => {
     }
 
     try {
-         await Product.findByIdAndDelete(id);
-        return res.status(200).json({success: true, message: "Product deleted successfuly"});
+      await Product.findByIdAndDelete(id);
+      removeOneCache("products", id);
+
+      return res.status(200).json({success: true, message: "Product deleted successfuly"});
     } catch (error) {
-        return res.status(500).json({success: false, message: error.message});
+      return res.status(500).json({success: false, message: error.message});
     }
 }
